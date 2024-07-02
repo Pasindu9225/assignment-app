@@ -1,92 +1,67 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { chatSession } from "../../utils/AiModal";
 
 const Generate = () => {
   const [prompt, setPrompt] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState("");
-  const [aiOutput, setAiOutput] = useState("");
+  const [aiOutput, setAiOutput] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setPreview(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setPreview("");
-    }
-  }, [file]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0] || null;
-    setFile(selectedFile);
-  };
-
   const GenerateAIContent = async () => {
+    if (!prompt.trim()) return;
+
     setLoading(true);
+    setAiOutput((prev) => [...prev, `User: ${prompt}`]);
+
     try {
-      const SelectedPrompt = prompt;
-      const FinalAiPrompt = JSON.stringify(file) + "," + SelectedPrompt;
-
-      const result = await chatSession.sendMessage(FinalAiPrompt);
+      const result = await chatSession.sendMessage(prompt);
       const aiResponse = await result.response.text();
-
-      setAiOutput(aiResponse);
+      setAiOutput((prev) => [...prev, `AI: ${aiResponse}`]);
+      setPrompt("");
     } catch (error) {
       console.error("Error generating AI content:", error);
-      setAiOutput("");
       setError("Failed to generate AI content. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(aiOutput);
-    alert("AI output copied to clipboard!");
-  };
-
   return (
-    <div className="w-full max-w-[1200px] h-[570px] bg-gray-300 flex items-stretch flex-col gap-12 py-14 px-10">
-      <div className="max-w-[600px] rounded-lg shadow-md py-2 px-2 flex self-start bg-white text-black font-bold">
-        I can help with your assignment. Give me your assignment
-      </div>
-      <div className="w-[800px] flex rounded-lg shadow-md py-2 px-2 self-end bg-white text-black font-bold gap-4">
+    <div className="max-w-2xl mx-auto p-6 bg-gray-100 rounded-lg shadow-md">
+      <h1 className="text-3xl font-semibold text-center text-gray-800 mb-6">
+        Chat with AI
+      </h1>
+      <div className="flex flex-col space-y-4">
+        <div className="bg-white p-4 rounded-lg shadow-inner h-96 overflow-y-auto">
+          {aiOutput.map((message, index) => (
+            <div
+              key={index}
+              className={`p-2 rounded-lg mb-2 ${
+                message.startsWith("User:")
+                  ? "bg-blue-200 self-end"
+                  : "bg-gray-200 self-start"
+              }`}
+            >
+              {message}
+            </div>
+          ))}
+        </div>
+        {error && <p className="text-red-600 text-center">{error}</p>}
         <textarea
-          className="w-full h-full outline-none bg-gray-300 p-2 rounded-lg resize-none no-scrollbar"
+          className="w-full p-3 border rounded-lg resize-none focus:outline-none"
           rows={3}
-          placeholder="Type here..."
+          placeholder="Type your message..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />
-      </div>
-      <div className="max-w-[600px] rounded-lg shadow-md py-2 px-2 flex self-start bg-white text-black font-bold">
-        {error ? <div className="text-red-600">{error}</div> : null}
-        <pre>{aiOutput ? aiOutput : "AI Output"}</pre>
-      </div>
-      <div className="max-w-[600px] rounded-lg shadow-md py-2 px-2 flex self-start bg-white text-black font-bold">
         <button
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
           onClick={GenerateAIContent}
-          disabled={!prompt || loading}
+          disabled={loading}
         >
-          {loading ? "Generating..." : "Generate AI Content"}
+          {loading ? "Generating..." : "Send"}
         </button>
-        {aiOutput && (
-          <button
-            className="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            onClick={copyToClipboard}
-          >
-            Copy Output
-          </button>
-        )}
       </div>
     </div>
   );
